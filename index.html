@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>BukoCash</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
+        :root {
+            --primary-color: #4CAF50;
+            --primary-dark: #388E3C;
+            --secondary-color: #FFC107;
+            --background-color: #f4f6f8;
+            --surface-color: #ffffff;
+            --text-color: #212121;
+            --text-color-light: #757575;
+            --border-color: #e0e0e0;
+            --danger-color: #f44336;
+            --income-color: #4CAF50;
+            --expense-color: #f44336;
+            --transfer-color: #2196F3;
+            --warning-color: #FFC107;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { height: 100%; }
+        body { font-family: 'Roboto', sans-serif; background-color: var(--background-color); color: var(--text-color); }
+        #app-container { max-width: 480px; margin: auto; background-color: var(--surface-color); min-height: 100vh; box-shadow: 0 0 20px rgba(0,0,0,0.1); position: relative; overflow: hidden; }
+        .hidden { display: none !important; }
+        .page { display: none; flex-direction: column; height: 100vh; width: 100%; position: absolute; top: 0; left: 0; }
+        .page.active { display: flex; z-index: 1; }
+        header { display: flex; justify-content: space-between; align-items: center; padding: 1rem; background-color: var(--primary-color); color: white; flex-shrink: 0; }
+        .menu-btn { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; }
+        .account-selector select { background-color: rgba(255,255,255,0.2); color: white; border: none; padding: 0.5rem; border-radius: 8px; font-size: 1rem; font-weight: 500; }
+        .account-selector option { color: black; }
+        .content { flex-grow: 1; padding: 1rem; overflow-y: auto; }
+        .filter-bar { margin-bottom: 1rem; }
+        .filter-bar select { width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; }
+        .balance-card { background-color: var(--surface-color); padding: 1.5rem; border-radius: 12px; text-align: center; margin-bottom: 1.5rem; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        .balance-card p { color: var(--text-color-light); margin-bottom: 0.5rem; }
+        .balance-card h2 { font-size: 2.5rem; font-weight: 700; }
+        .transaction-item { display: flex; align-items: center; padding: 1rem; border-bottom: 1px solid var(--border-color); }
+        .transaction-icon { font-size: 1.5rem; width: 45px; height: 45px; display: flex; justify-content: center; align-items: center; border-radius: 50%; margin-right: 1rem; color: white; flex-shrink: 0; }
+        .transaction-details { flex-grow: 1; }
+        .transaction-amount { font-weight: 500; font-size: 1.1rem; }
+        .transaction-amount.income { color: var(--income-color); }
+        .transaction-amount.expense { color: var(--expense-color); }
+        .transaction-amount.transfer { color: var(--transfer-color); }
+        .fab { position: fixed; bottom: 2rem; right: calc(50% - 210px); width: 60px; height: 60px; border-radius: 50%; background-color: var(--secondary-color); color: var(--text-color); font-size: 2rem; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.2); cursor: pointer; z-index: 10; }
+        #hamburger-menu { position: fixed; top: 0; left: -300px; width: 300px; height: 100%; background-color: var(--surface-color); z-index: 1001; transition: left 0.3s ease-in-out; display: flex; flex-direction: column; box-shadow: 2px 0 10px rgba(0,0,0,0.1); }
+        #hamburger-menu.open { left: 0; }
+        .menu-header { padding: 1rem; background-color: var(--primary-color); color: white; }
+        #hamburger-menu ul { list-style: none; padding-top: 1rem; }
+        #hamburger-menu li a { display: block; padding: 1rem 1.5rem; color: var(--text-color); text-decoration: none; font-size: 1.1rem; }
+        #hamburger-menu li a:hover { background-color: var(--background-color); }
+        #hamburger-menu li a i { margin-right: 1rem; width: 20px; text-align: center; }
+        #menu-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 1000; display: none; }
+        #menu-overlay.show { display: block; }
+        #modal-container, #icon-modal-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 2000; }
+        #modal-container.hidden, #icon-modal-container.hidden { display: none; }
+        .modal-content { background-color: var(--surface-color); padding: 1.5rem; border-radius: 12px; width: 90%; max-width: 400px; position: relative; max-height: 80vh; overflow-y: auto; }
+        .close-modal-btn { position: absolute; top: 10px; right: 10px; background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-color-light); }
+        .form-group { margin-bottom: 1rem; }
+        .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 500; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; font-size: 1rem; font-family: 'Roboto', sans-serif; }
+        .form-group .btn-group { display: flex; gap: 10px; }
+        .form-group .btn-group button { flex: 1; padding: 0.8rem; border: 1px solid var(--border-color); background-color: var(--background-color); cursor: pointer; border-radius: 8px; }
+        .form-group .btn-group button.active { background-color: var(--primary-color); color: white; border-color: var(--primary-color); }
+        .btn-primary { width: 100%; padding: 1rem; border: none; border-radius: 8px; background-color: var(--primary-color); color: white; font-size: 1rem; font-weight: 500; cursor: pointer; margin-top: 1rem; }
+        .btn-secondary { width: 100%; padding: 1rem; border: 1px solid var(--primary-color); border-radius: 8px; background-color: transparent; color: var(--primary-color); font-size: 1rem; font-weight: 500; cursor: pointer; margin-top: 0.5rem; }
+        #icon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(50px, 1fr)); gap: 10px; margin-top: 1rem; }
+        .icon-option { font-size: 1.5rem; padding: 10px; border-radius: 8px; text-align: center; cursor: pointer; border: 1px solid var(--border-color); }
+        .icon-option:hover { background-color: var(--background-color); }
+        .icon-preview { display: flex; align-items: center; gap: 10px; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; cursor: pointer; }
+        .icon-preview i { font-size: 1.5rem; width: 30px; text-align: center; }
+        .list-item { display: flex; align-items: center; padding: 1rem; background: var(--surface-color); border-radius: 8px; margin-bottom: 0.5rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .list-item-icon { font-size: 1.2rem; width: 40px; height: 40px; display: flex; justify-content: center; align-items: center; border-radius: 50%; color: white; margin-right: 1rem; flex-shrink: 0; }
+        .list-item-info { flex-grow: 1; }
+        .list-item-actions { display: flex; gap: 0.5rem; }
+        .list-item-actions button { background: none; border: none; cursor: pointer; font-size: 1.1rem; color: var(--text-color-light); padding: 0.5rem; }
+        .list-item-actions .danger { color: var(--danger-color); }
+        .category-tabs { display: flex; border-bottom: 1px solid var(--border-color); margin-bottom: 1rem; }
+        .category-tab { flex: 1; padding: 0.8rem; text-align: center; background: none; border: none; cursor: pointer; font-size: 1rem; font-weight: 500; color: var(--text-color-light); border-bottom: 3px solid transparent; }
+        .category-tab.active { color: var(--primary-color); border-bottom-color: var(--primary-color); }
+        #categories-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 1rem; }
+        .category-tile { background: var(--surface-color); border-radius: 12px; padding: 1rem; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05); position: relative; }
+        .category-tile-icon { font-size: 2rem; width: 50px; height: 50px; margin: 0 auto 0.5rem auto; display: flex; justify-content: center; align-items: center; border-radius: 50%; color: white; }
+        .category-tile-actions { position: absolute; top: 5px; right: 5px; display: flex; gap: 0.25rem; }
+        .category-tile-actions button { background: rgba(255,255,255,0.9); border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; font-size: 0.8rem; }
+        .chart-container { margin-bottom: 2rem; }
+        .chart-container h3 { margin-bottom: 1rem; }
+        .no-data { color: var(--text-color-light); text-align: center; padding: 2rem; }
+        .budget-item { background-color: var(--surface-color); border-radius: 12px; padding: 1rem; margin-bottom: 1rem; box-shadow: 0 2px 6px rgba(0,0,0,0.07); }
+        .budget-header { display: flex; align-items: center; margin-bottom: 1rem; }
+        .budget-info { flex-grow: 1; margin-left: 0.5rem; }
+        .budget-info .category-name { font-weight: 500; font-size: 1.1rem; }
+        .budget-amounts { font-size: 0.9rem; color: var(--text-color-light); margin-top: 0.25rem; }
+        .budget-amounts .spent { color: var(--text-color); font-weight: 500; }
+        .progress-bar { width: 100%; background-color: var(--border-color); border-radius: 8px; height: 16px; overflow: hidden; margin-bottom: 0.5rem; }
+        .progress-bar-fill { height: 100%; border-radius: 8px; transition: width 0.4s ease-in-out; }
+        .budget-remaining { text-align: right; font-size: 0.9rem; color: var(--text-color-light); }
+        .welcome-content { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%; padding: 2rem; text-align: center; }
+        .logo { font-size: 3rem; color: var(--primary-color); margin-bottom: 1rem; font-weight: 700; }
+        .welcome-content p { font-size: 1.2rem; color: var(--text-color-light); margin-bottom: 3rem; }
+        .welcome-content button { width: 100%; max-width: 300px; }
+        .settings-group { margin-bottom: 2rem; }
+        .settings-group h3 { margin-bottom: 1rem; color: var(--primary-color); }
+        .settings-button { width: 100%; padding: 1rem; border: 1px solid var(--border-color); border-radius: 8px; background-color: var(--surface-color); cursor: pointer; margin-bottom: 0.5rem; text-align: left; font-size: 1rem; }
+        .settings-button.danger { color: var(--danger-color); border-color: var(--danger-color); }
+        .settings-group label { display: block; margin-bottom: 0.5rem; font-weight: 500; }
+        .settings-group select { width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; }
+        #pin-lockscreen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: var(--surface-color); z-index: 3000; display: flex; justify-content: center; align-items: center; }
+        .pin-content { text-align: center; padding: 2rem; }
+        .pin-content h3 { font-size: 2rem; color: var(--primary-color); margin-bottom: 1rem; }
+        .pin-content p { color: var(--text-color-light); margin-bottom: 2rem; }
+        #pin-dots, #pin-setup-dots { display: flex; justify-content: center; gap: 1rem; margin-bottom: 2rem; }
+        .dot { width: 20px; height: 20px; border: 2px solid var(--border-color); border-radius: 50%; }
+        .dot.filled { background-color: var(--primary-color); border-color: var(--primary-color); }
+        .error-message { color: var(--danger-color); min-height: 20px; margin-bottom: 1rem; }
+        #pin-keyboard, #pin-setup-keyboard { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; max-width: 300px; margin: 0 auto; }
+        #pin-keyboard button, #pin-setup-keyboard button { padding: 1.5rem; border: 1px solid var(--border-color); border-radius: 50%; background-color: var(--surface-color); font-size: 1.5rem; cursor: pointer; }
+        #pin-keyboard button:hover, #pin-setup-keyboard button:hover { background-color: var(--background-color); }
+        .switch { position: relative; display: inline-block; width: 50px; height: 24px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 24px; }
+        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--primary-color); }
+        input:checked + .slider:before { transform: translateX(26px); }
+    </style>
+</head>
+<body>
+    <div id="pin-lockscreen" class="hidden"></div>
+    <div id="app-container">
+        <section id="page-welcome" class="page"></section>
+        <section id="page-main" class="page"></section>
+        <section id="page-accounts" class="page"></section>
+        <section id="page-categories" class="page"></section>
+        <section id="page-recurring" class="page"></section>
+        <section id="page-budgets" class="page"></section>
+        <section id="page-charts" class="page"></section>
+        <section id="page-settings" class="page"></section>
+        <nav id="hamburger-menu"></nav>
+        <div id="menu-overlay"></div>
+        <div id="modal-container" class="hidden"><div class="modal-content"><button class="close-modal-btn">&times;</button><div id="modal-body"></div></div></div>
+        <div id="icon-modal-container" class="hidden"><div class="modal-content"><button class="close-icon-modal-btn close-modal-btn">&times;</button><h2>Seleccionar Ícono</h2><div id="icon-grid"></div></div></div>
+    </div>
+    <script>
+(function(){'use strict';
+const app={state:{wallet:null,page:'welcome',accountId:'all',pinInput:'',charts:{},categoryTab:'gasto',iconCallback:null,iconColor:'#4CAF50'},
+icons:['fa-wallet','fa-piggy-bank','fa-credit-card','fa-university','fa-briefcase','fa-coins','fa-money-bill-wave','fa-car','fa-home','fa-heartbeat','fa-utensils','fa-graduation-cap','fa-gamepad','fa-shopping-cart','fa-plane','fa-gas-pump','fa-tshirt','fa-lightbulb','fa-gift','fa-pills','fa-sync-alt','fa-file-invoice-dollar','fa-tag','fa-question-circle','fa-chart-line','fa-glass-cheers','fa-tags','fa-plus-circle'],
+defaultCats:[{id:1,name:'Salud',type:'gasto',icon:'fa-heartbeat',color:'#f44336'},{id:2,name:'Ocio',type:'gasto',icon:'fa-gamepad',color:'#9C27B0'},{id:3,name:'Casa',type:'gasto',icon:'fa-home',color:'#3F51B5'},{id:4,name:'Educación',type:'gasto',icon:'fa-graduation-cap',color:'#009688'},{id:5,name:'Alimentación',type:'gasto',icon:'fa-utensils',color:'#FF9800'},{id:7,name:'Transporte',type:'gasto',icon:'fa-car',color:'#607D8B'},{id:8,name:'Restaurante',type:'gasto',icon:'fa-glass-cheers',color:'#E91E63'},{id:10,name:'Otros Gastos',type:'gasto',icon:'fa-question-circle',color:'#9E9E9E'},{id:11,name:'Salario',type:'ingreso',icon:'fa-briefcase',color:'#4CAF50'},{id:12,name:'Ventas',type:'ingreso',icon:'fa-tags',color:'#8BC34A'},{id:13,name:'Regalos',type:'ingreso',icon:'fa-gift',color:'#CDDC39'},{id:15,name:'Otros Ingresos',type:'ingreso',icon:'fa-plus-circle',color:'#673AB7'}]};
+
+const data={save:()=>{if(app.state.wallet)localStorage.setItem('BukoCashWallet',JSON.stringify(app.state.wallet))},
+load:()=>{const d=localStorage.getItem('BukoCashWallet');if(d){app.state.wallet=JSON.parse(d);app.state.wallet.settings=app.state.wallet.settings||{pin:null,decimalSeparator:','};app.state.wallet.recurringPayments=app.state.wallet.recurringPayments||[];app.state.wallet.budgets=app.state.wallet.budgets||[];app.state.accountId='all';return true}return false},
+create:(n)=>{app.state.wallet={name:n,accounts:[{id:Date.now(),name:'Principal',initialBalance:0,icon:'fa-wallet',color:'#4CAF50',isMain:true}],categories:JSON.parse(JSON.stringify(app.defaultCats)),transactions:[],recurringPayments:[],budgets:[],lastRecurringCheck:new Date().toISOString(),settings:{pin:null,decimalSeparator:','}};app.state.accountId=app.state.wallet.accounts[0].id;data.save()},
+balance:(id)=>{const a=app.state.wallet.accounts.find(x=>x.id===id);if(!a)return 0;let b=a.initialBalance||0;app.state.wallet.transactions.forEach(t=>{if(t.type==='transferencia'){if(t.fromAccountId===id)b-=t.amount;if(t.toAccountId===id)b+=t.amount}else if(t.accountId===id){b+=(t.type==='ingreso'?t.amount:-t.amount)}});return b},
+generalBalance:()=>app.state.wallet.accounts.reduce((t,a)=>t+data.balance(a.id),0),
+filterPeriod:(p,ts=app.state.wallet.transactions)=>{const n=new Date();let s;switch(p){case'today':s=new Date(n.getFullYear(),n.getMonth(),n.getDate());break;case'week':s=new Date(n.getFullYear(),n.getMonth(),n.getDate()-n.getDay());break;case'month':s=new Date(n.getFullYear(),n.getMonth(),1);break;case'year':s=new Date(n.getFullYear(),0,1);break;default:return ts}return ts.filter(t=>new Date(t.date)>=s)}};
+
+const ui={nav:(p)=>{Object.values(app.state.charts).forEach(c=>c?.destroy());app.state.charts={};document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));document.getElementById(`page-${p}`).classList.add('active');app.state.page=p;ui.closeMenu();render[`render${p.charAt(0).toUpperCase()+p.slice(1)}Page`]?.()},
+openMenu:()=>{document.getElementById('hamburger-menu').classList.add('open');document.getElementById('menu-overlay').classList.add('show')},
+closeMenu:()=>{document.getElementById('hamburger-menu').classList.remove('open');document.getElementById('menu-overlay').classList.remove('show')},
+showModal:(h)=>{document.getElementById('modal-body').innerHTML=h;document.getElementById('modal-container').classList.remove('hidden')},
+hideModal:()=>{document.getElementById('modal-container').classList.add('hidden');document.getElementById('modal-body').innerHTML=''},
+showIconPicker:(cb,col='#4CAF50')=>{app.state.iconCallback=cb;app.state.iconColor=col;document.getElementById('icon-grid').innerHTML=app.icons.map(i=>`<div class="icon-option" data-icon="${i}"><i class="fas ${i}"></i></div>`).join('');document.getElementById('icon-modal-container').classList.remove('hidden')},
+hideIconPicker:()=>{document.getElementById('icon-modal-container').classList.add('hidden');app.state.iconCallback=null},
+formatCurrency:(a)=>{const s=app.state.wallet?.settings?.decimalSeparator||',';if(isNaN(a))a=0;return `$${a.toFixed(2).replace('.',s)}`}};
+
+const render={shell:(id,h)=>{const p=document.getElementById(id);if(p)p.innerHTML=h},
+renderWelcomePage:()=>render.shell('page-welcome',`<div class="welcome-content"><h1 class="logo">BukoCash</h1><p>Tu gestor de finanzas personal</p><button id="btn-create-wallet" class="btn-primary">Crear Nueva Billetera</button><button id="btn-load-wallet" class="btn-secondary">Cargar Billetera</button><input type="file" id="import-wallet-input" class="hidden" accept=".json"></div>`),
+renderMainPage:()=>{render.shell('page-main',`<header><button id="btn-open-menu" class="menu-btn"><i class="fas fa-bars"></i></button><div class="account-selector"><select id="main-account-select"></select></div><div style="width:24px;"></div></header><main class="content"><div class="balance-card"><p id="balance-title"></p><h2 id="main-balance"></h2></div><div class="filter-bar"><select id="filter-period"><option value="all">Todo</option><option value="year">Este Año</option><option value="month" selected>Este Mes</option><option value="week">Esta Semana</option><option value="today">Hoy</option></select></div><div id="transaction-list"></div></main><button id="btn-add-transaction" class="fab">+</button>`);
+if(!app.state.wallet)return;document.getElementById('main-account-select').innerHTML=`<option value="all">Balance General</option>${app.state.wallet.accounts.map(a=>`<option value="${a.id}">${a.name}</option>`).join('')}`;document.getElementById('main-account-select').value=app.state.accountId;
+const bt=document.getElementById('balance-title'),mb=document.getElementById('main-balance'),tl=document.getElementById('transaction-list'),f=document.getElementById('filter-period').value,pt=data.filterPeriod(f);let ft=[];
+if(app.state.accountId==='all'){bt.textContent='Balance General';mb.textContent=ui.formatCurrency(data.generalBalance());ft=pt}else{bt.textContent='Balance de la cuenta';const aid=parseInt(app.state.accountId);mb.textContent=ui.formatCurrency(data.balance(aid));ft=pt.filter(t=>t.accountId===aid||t.fromAccountId===aid||t.toAccountId===aid)}
+ft.sort((a,b)=>new Date(b.date)-new Date(a.date));
+if(ft.length===0){tl.innerHTML='<p class="no-data">No hay transacciones en este periodo.</p>'}else{tl.innerHTML=ft.map(t=>{let d,ac,s,ic,co,cn;if(t.type==='transferencia'){const fa=app.state.wallet.accounts.find(a=>a.id===t.fromAccountId)?.name||'?',ta=app.state.wallet.accounts.find(a=>a.id===t.toAccountId)?.name||'?';d=`Transferencia de ${fa} a ${ta}`;ac='transfer';s='';ic='fa-exchange-alt';co='var(--transfer-color)';cn=d}else{const cat=app.state.wallet.categories.find(c=>c.id===t.categoryId)||{name:'Sin Categoría',icon:'fa-question-circle',color:'#ccc'};ac=t.type;s=t.type==='gasto'?'-':'+';ic=cat.icon;co=cat.color;cn=cat.name}
+return`<div class="transaction-item"><div class="transaction-icon" style="background-color:${co};"><i class="fas ${ic}"></i></div><div class="transaction-details"><div>${cn}</div><div style="font-size:0.9rem;color:var(--text-color-light);">${new Date(t.date).toLocaleDateString()}</div>${t.comment?`<div style="font-size:0.9rem;color:var(--text-color-light);">${t.comment}</div>`:''}</div><div class="transaction-amount ${ac}">${s}${ui.formatCurrency(Math.abs(t.amount))}</div></div>`}).join('')}},
+renderAccountsPage:()=>{render.shell('page-accounts',`<header><button class="back-to-main menu-btn"><i class="fas fa-arrow-left"></i></button><h2>Cuentas</h2><div></div></header><main class="content" id="accounts-list"></main><button id="btn-add-account" class="fab">+</button>`);
+document.getElementById('accounts-list').innerHTML=app.state.wallet.accounts.map(a=>`<div class="list-item"><div class="list-item-icon" style="background-color:${a.color};"><i class="fas ${a.icon}"></i></div><div class="list-item-info"><div>${a.name} ${a.isMain?'<i class="fas fa-star" style="color:gold;"></i>':''}</div><div style="font-size:0.9rem;color:var(--text-color-light);">${ui.formatCurrency(data.balance(a.id))}</div></div><div class="list-item-actions">${!a.isMain?`<button class="action-set-main" data-id="${a.id}"><i class="far fa-star"></i></button>`:''}<button class="action-edit-account" data-id="${a.id}"><i class="fas fa-pen"></i></button>${app.state.wallet.accounts.length>1&&!a.isMain?`<button class="action-delete-account danger" data-id="${a.id}"><i class="fas fa-trash"></i></button>`:''}</div></div>`).join('')},
+renderCategoriesPage:()=>{render.shell('page-categories',`<header><button class="back-to-main menu-btn"><i class="fas fa-arrow-left"></i></button><h2>Categorías</h2><div></div></header><main class="content"><div class="category-tabs"><button class="category-tab ${app.state.categoryTab==='gasto'?'active':''}" data-type="gasto">Gastos</button><button class="category-tab ${app.state.categoryTab==='ingreso'?'active':''}" data-type="ingreso">Ingresos</button></div><div id="categories-grid"></div></main><button id="btn-add-category" class="fab">+</button>`);
+const g=document.getElementById('categories-grid'),isDef=id=>app.defaultCats.some(c=>c.id===id),cats=app.state.wallet.categories.filter(c=>c.type===app.state.categoryTab);
+g.innerHTML=cats.length===0?'<p class="no-data">No hay categorías de este tipo.</p>':cats.map(c=>`<div class="category-tile">${!isDef(c.id)?`<div class="category-tile-actions"><button class="action-edit-category" data-id="${c.id}"><i class="fas fa-pen"></i></button><button class="action-delete-category danger" data-id="${c.id}"><i class="fas fa-trash"></i></button></div>`:''}<div class="category-tile-icon" style="background-color:${c.color};"><i class="fas ${c.icon}"></i></div><div>${c.name}</div></div>`).join('')},
+renderRecurringPage:()=>{render.shell('page-recurring',`<header><button class="back-to-main menu-btn"><i class="fas fa-arrow-left"></i></button><h2>Pagos Habituales</h2><div></div></header><main class="content" id="recurring-list"></main><button id="btn-add-recurring" class="fab">+</button>`);
+const l=document.getElementById('recurring-list');if(!app.state.wallet.recurringPayments||app.state.wallet.recurringPayments.length===0){l.innerHTML='<p class="no-data">No has creado pagos habituales.</p>';return}
+l.innerHTML=app.state.wallet.recurringPayments.map(p=>`<div class="list-item"><div class="list-item-icon" style="background-color:${p.color};"><i class="fas ${p.icon}"></i></div><div class="list-item-info"><div>${p.name} (${ui.formatCurrency(p.amount)})</div><div style="font-size:0.9rem;color:var(--text-color-light);">${p.frequency} - Próximo: ${new Date(p.nextDueDate).toLocaleDateString()}</div></div><div class="list-item-actions"><label class="switch"><input type="checkbox" class="toggle-recurring" data-id="${p.id}" ${p.active?'checked':''}><span class="slider"></span></label><button class="action-delete-recurring danger" data-id="${p.id}"><i class="fas fa-trash"></i></button></div></div>`).join('')},
+renderBudgetsPage:()=>{render.shell('page-budgets',`<header><button class="back-to-main menu-btn"><i class="fas fa-arrow-left"></i></button><h2>Presupuestos</h2><div></div></header><main class="content" id="budgets-list"></main><button id="btn-add-budget" class="fab">+</button>`);
+const l=document.getElementById('budgets-list'),bs=app.state.wallet.budgets||[];if(bs.length===0){l.innerHTML='<p class="no-data">No has creado ningún presupuesto.</p>';return}
+const me=data.filterPeriod('month',app.state.wallet.transactions.filter(t=>t.type==='gasto'));
+l.innerHTML=bs.map(b=>{const cat=app.state.wallet.categories.find(c=>c.id===b.categoryId);if(!cat)return'';const sp=me.filter(t=>t.categoryId===b.categoryId).reduce((s,t)=>s+t.amount,0),rem=b.amount-sp,pct=Math.min(100,(sp/b.amount)*100);let pc='var(--primary-color)';if(pct>75)pc='var(--warning-color)';if(pct>=100)pc='var(--danger-color)';
+return`<div class="budget-item"><div class="budget-header"><div class="list-item-icon" style="background-color:${cat.color};"><i class="fas ${cat.icon}"></i></div><div class="budget-info"><div class="category-name">${cat.name}</div><div class="budget-amounts"><span class="spent">${ui.formatCurrency(sp)}</span> de ${ui.formatCurrency(b.amount)}</div></div><div class="list-item-actions"><button class="action-edit-budget" data-id="${b.id}"><i class="fas fa-pen"></i></button><button class="action-delete-budget danger" data-id="${b.id}"><i class="fas fa-trash"></i></button></div></div><div class="progress-bar"><div class="progress-bar-fill" style="width:${pct}%;background-color:${pc};"></div></div><div class="budget-remaining">${ui.formatCurrency(rem)} restante</div></div>`}).join('')},
+renderChartsPage:()=>{render.shell('page-charts',`<header><button class="back-to-main menu-btn"><i class="fas fa-arrow-left"></i></button><h2>Gráficos</h2><div></div></header><main class="content"><div class="filter-bar"><select id="charts-filter-period"><option value="all">Todo</option><option value="year">Este Año</option><option value="month" selected>Este Mes</option><option value="week">Esta Semana</option><option value="today">Hoy</option></select></div><div class="chart-container"><h3>Ingresos vs Gastos</h3><canvas id="incomeExpenseChart"></canvas></div><div class="chart-container"><h3>Distribución de Gastos</h3><canvas id="expenseByCategoryChart"></canvas></div><div class="chart-container"><h3>Capital por Cuenta</h3><canvas id="balanceByAccountChart"></canvas></div></main>`);
+Object.values(app.state.charts).forEach(c=>c?.destroy());app.state.charts={};const f=document.getElementById('charts-filter-period').value,ts=data.filterPeriod(f);
+let ibd={},ebd={},lbs=[],td=new Date();for(let i=29;i>=0;i--){const d=new Date(td);d.setDate(td.getDate()-i);const k=d.toISOString().split('T')[0];lbs.push(k);ibd[k]=0;ebd[k]=0}
+ts.forEach(t=>{const k=t.date.split('T')[0];if(ibd.hasOwnProperty(k)){if(t.type==='ingreso')ibd[k]+=t.amount;if(t.type==='gasto')ebd[k]+=t.amount}});
+const c1=document.getElementById('incomeExpenseChart').getContext('2d');app.state.charts.c1=new Chart(c1,{type:'line',data:{labels:lbs.map(l=>new Date(l+'T00:00:00').toLocaleDateString('es-ES',{day:'numeric',month:'short'})),datasets:[{label:'Ingresos',data:lbs.map(l=>ibd[l]),borderColor:'var(--income-color)',backgroundColor:'rgba(76,175,80,0.2)',fill:true,tension:0.1},{label:'Gastos',data:lbs.map(l=>ebd[l]),borderColor:'var(--expense-color)',backgroundColor:'rgba(244,67,54,0.2)',fill:true,tension:0.1}]}});
+let ebc={};ts.filter(t=>t.type==='gasto').forEach(t=>{const cat=app.state.wallet.categories.find(c=>c.id===t.categoryId);if(cat)ebc[cat.name]=(ebc[cat.name]||0)+t.amount});
+const c2=document.getElementById('expenseByCategoryChart').getContext('2d');app.state.charts.c2=new Chart(c2,{type:'doughnut',data:{labels:Object.keys(ebc),datasets:[{data:Object.values(ebc),backgroundColor:Object.keys(ebc).map(n=>app.state.wallet.categories.find(c=>c.name===n)?.color||'#ccc')}]},options:{plugins:{legend:{position:'bottom'}}}});
+const abs=app.state.wallet.accounts.map(a=>Math.max(0,data.balance(a.id))),c3=document.getElementById('balanceByAccountChart').getContext('2d');app.state.charts.c3=new Chart(c3,{type:'pie',data:{labels:app.state.wallet.accounts.map(a=>a.name),datasets:[{data:abs,backgroundColor:app.state.wallet.accounts.map(a=>a.color)}]},options:{plugins:{legend:{position:'bottom'}}}})},
+renderSettingsPage:()=>{render.shell('page-settings',`<header><button class="back-to-main menu-btn"><i class="fas fa-arrow-left"></i></button><h2>Ajustes</h2><div></div></header><main class="content"><div class="settings-group"><h3>Seguridad</h3><button id="btn-set-pin" class="settings-button">Establecer/Cambiar PIN</button><button id="btn-remove-pin" class="settings-button danger">Quitar PIN</button></div><div class="settings-group"><h3>Personalización</h3><label for="decimal-separator">Separador decimal</label><select id="decimal-separator"><option value=",">Coma (0,00)</option><option value=".">Punto (0.00)</option></select></div><div class="settings-group"><h3>Copia de Seguridad</h3><button id="btn-export-wallet" class="settings-button">Exportar Billetera (JSON)</button><button id="btn-import-wallet" class="settings-button">Importar Billetera (JSON)</button></div><div class="settings-group"><h3>Datos</h3><button id="btn-delete-wallet" class="settings-button danger">Eliminar todos los datos</button></div></main>`);
+document.getElementById('decimal-separator').value=app.state.wallet.settings.decimalSeparator;document.getElementById('btn-remove-pin').style.display=app.state.wallet.settings.pin?'block':'none'},
+renderMenu:()=>render.shell('hamburger-menu',`<div class="menu-header"><h3 id="menu-wallet-name">BukoCash</h3></div><ul><li><a href="#" class="nav-link" data-page="main"><i class="fas fa-home"></i> Inicio</a></li><li><a href="#" class="nav-link" data-page="accounts"><i class="fas fa-wallet"></i> Cuentas</a></li><li><a href="#" class="nav-link" data-page="categories"><i class="fas fa-tags"></i> Categorías</a></li><li><a href="#" class="nav-link" data-page="budgets"><i class="fas fa-chart-line"></i> Presupuestos</a></li><li><a href="#" class="nav-link" data-page="recurring"><i class="fas fa-sync-alt"></i> Pagos Habituales</a></li><li><a href="#" class="nav-link" data-page="charts"><i class="fas fa-chart-pie"></i> Gráficos</a></li><li><a href="#" class="nav-link" data-page="settings"><i class="fas fa-cog"></i> Ajustes</a></li></ul>`)};
+
+const pin={show:()=>{const l=document.getElementById('pin-lockscreen');l.innerHTML=`<div class="pin-content"><h3>BukoCash</h3><p>Ingresa tu PIN</p><div id="pin-dots">${Array(4).fill('<div class="dot"></div>').join('')}</div><p id="pin-error" class="error-message"></p><div id="pin-keyboard"></div></div>`;l.classList.remove('hidden');app.state.pinInput='';pin.renderKb();pin.updateDots()},
+hide:()=>document.getElementById('pin-lockscreen').classList.add('hidden'),
+renderKb:()=>{const kb=document.getElementById('pin-keyboard'),ks=[1,2,3,4,5,6,7,8,9,'',0,'del'];kb.innerHTML=ks.map(k=>k===''?'<div></div>':`<button data-key="${k}">${k==='del'?'⌫':k}</button>`).join('')},
+press:(k)=>{if(k==='del')app.state.pinInput=app.state.pinInput.slice(0,-1);else if(app.state.pinInput.length<4)app.state.pinInput+=k;pin.updateDots();if(app.state.pinInput.length===4)setTimeout(()=>pin.verify(),300)},
+updateDots:()=>{document.querySelectorAll('#pin-dots .dot').forEach((d,i)=>{i<app.state.pinInput.length?d.classList.add('filled'):d.classList.remove('filled')})},
+verify:()=>{if(app.state.pinInput===app.state.wallet.settings.pin){pin.hide();logic.initApp()}else{document.getElementById('pin-error').textContent='PIN incorrecto';app.state.pinInput='';pin.updateDots();setTimeout(()=>document.getElementById('pin-error').textContent='',2000)}},
+setup:()=>{let tp='',cp='',st=1;const h=`<h2>Configurar PIN</h2><p id="pin-setup-message">Ingresa un PIN de 4 dígitos</p><div id="pin-setup-dots">${Array(4).fill('<div class="dot"></div>').join('')}</div><div id="pin-setup-keyboard"></div>`;ui.showModal(h);
+const kb=document.getElementById('pin-setup-keyboard'),ks=[1,2,3,4,5,6,7,8,9,'',0,'del'];kb.innerHTML=ks.map(k=>k===''?'<div></div>':`<button data-key="${k}" class="pin-setup-key">${k==='del'?'⌫':k}</button>`).join('');kb.style.display='grid';kb.style.gridTemplateColumns='repeat(3,1fr)';kb.style.gap='1rem';kb.style.maxWidth='300px';kb.style.margin='1rem auto 0';
+const upd=inp=>document.querySelectorAll('#pin-setup-dots .dot').forEach((d,i)=>i<inp.length?d.classList.add('filled'):d.classList.remove('filled'));
+kb.addEventListener('click',e=>{const k=e.target.closest('.pin-setup-key')?.dataset.key;if(!k)return;if(st===1){if(k==='del')tp=tp.slice(0,-1);else if(tp.length<4)tp+=k;upd(tp);if(tp.length===4)setTimeout(()=>{st=2;document.getElementById('pin-setup-message').textContent='Confirma tu PIN';upd('')},300)}else if(st===2){if(k==='del')cp=cp.slice(0,-1);else if(cp.length<4)cp+=k;upd(cp);if(cp.length===4)setTimeout(()=>{if(tp===cp){app.state.wallet.settings.pin=tp;data.save();alert('PIN configurado');ui.hideModal();render.renderSettingsPage()}else{alert('Los PINs no coinciden');tp='';cp='';st=1;document.getElementById('pin-setup-message').textContent='Ingresa un PIN de 4 dígitos';upd('')}},300)}})}};
+
+const modals={newTransaction:()=>{const ic=app.state.wallet.categories.filter(c=>c.type==='ingreso').map(c=>`<option value="${c.id}">${c.name}</option>`).join(''),ec=app.state.wallet.categories.filter(c=>c.type==='gasto').map(c=>`<option value="${c.id}">${c.name}</option>`).join(''),ao=app.state.wallet.accounts.map(a=>`<option value="${a.id}">${a.name}</option>`).join('');
+ui.showModal(`<h2>Nueva Transacción</h2><form id="form-transaction"><div class="form-group"><label>Tipo</label><div class="btn-group"><button type="button" class="transaction-type-btn active" data-type="gasto">Gasto</button><button type="button" class="transaction-type-btn" data-type="ingreso">Ingreso</button><button type="button" class="transaction-type-btn" data-type="transferencia">Transferencia</button></div></div><div class="form-group" id="category-group"><label>Categoría</label><select id="transaction-category" required>${ec}</select></div><div class="form-group" id="account-group"><label>Cuenta</label><select id="transaction-account" required>${ao}</select></div><div class="form-group hidden" id="from-account-group"><label>Desde</label><select id="transaction-from-account">${ao}</select></div><div class="form-group hidden" id="to-account-group"><label>Hasta</label><select id="transaction-to-account">${ao}</select></div><div class="form-group"><label>Monto</label><input type="number" id="transaction-amount" step="0.01" required></div><div class="form-group"><label>Fecha</label><input type="date" id="transaction-date" value="${new Date().toISOString().split('T')[0]}" required></div><div class="form-group"><label>Comentario</label><textarea id="transaction-comment" rows="2"></textarea></div><button type="submit" class="btn-primary">Agregar</button></form>`);
+document.querySelectorAll('.transaction-type-btn').forEach(b=>b.addEventListener('click',e=>{document.querySelectorAll('.transaction-type-btn').forEach(x=>x.classList.remove('active'));e.target.classList.add('active');const t=e.target.dataset.type,cg=document.getElementById('category-group'),ag=document.getElementById('account-group'),fg=document.getElementById('from-account-group'),tg=document.getElementById('to-account-group'),cs=document.getElementById('transaction-category');if(t==='transferencia'){cg.classList.add('hidden');ag.classList.add('hidden');fg.classList.remove('hidden');tg.classList.remove('hidden')}else{cg.classList.remove('hidden');ag.classList.remove('hidden');fg.classList.add('hidden');tg.classList.add('hidden');cs.innerHTML=t==='ingreso'?ic:ec}}));
+document.getElementById('form-transaction').addEventListener('submit',handlers.newTransaction)},
+newAccount:(a=null)=>{const ie=!!a;ui.showModal(`<h2>${ie?'Editar':'Nueva'} Cuenta</h2><form id="form-account"><input type="hidden" id="account-id" value="${ie?a.id:''}"><div class="form-group"><label>Nombre</label><input type="text" id="account-name" value="${ie?a.name:''}" required></div><div class="form-group"><label>Balance Inicial</label><input type="number" id="account-initial-balance" step="0.01" value="${ie?a.initialBalance:'0'}" required></div><div class="form-group"><label>Ícono</label><div class="icon-preview" id="account-icon-preview"><i class="fas ${ie?a.icon:'fa-wallet'}"></i><span>Seleccionar</span></div><input type="hidden" id="account-icon" value="${ie?a.icon:'fa-wallet'}"></div><div class="form-group"><label>Color</label><input type="color" id="account-color" value="${ie?a.color:'#4CAF50'}"></div><button type="submit" class="btn-primary">${ie?'Guardar':'Crear'}</button></form>`);
+document.getElementById('account-icon-preview').addEventListener('click',()=>ui.showIconPicker(ic=>{document.getElementById('account-icon').value=ic;document.querySelector('#account-icon-preview i').className=`fas ${ic}`},document.getElementById('account-color').value));
+document.getElementById('form-account').addEventListener('submit',handlers.newAccount)},
+newCategory:(c=null)=>{const ie=!!c;ui.showModal(`<h2>${ie?'Editar':'Nueva'} Categoría</h2><form id="form-category"><input type="hidden" id="category-id" value="${ie?c.id:''}"><div class="form-group"><label>Nombre</label><input type="text" id="category-name" value="${ie?c.name:''}" required></div><div class="form-group"><label>Tipo</label><div class="btn-group"><button type="button" class="category-type-btn ${!ie||c.type==='gasto'?'active':''}" data-type="gasto">Gasto</button><button type="button" class="category-type-btn ${ie&&c.type==='ingreso'?'active':''}" data-type="ingreso">Ingreso</button></div></div><div class="form-group"><label>Ícono</label><div class="icon-preview" id="category-icon-preview"><i class="fas ${ie?c.icon:'fa-tag'}"></i><span>Seleccionar</span></div><input type="hidden" id="category-icon" value="${ie?c.icon:'fa-tag'}"></div><div class="form-group"><label>Color</label><input type="color" id="category-color" value="${ie?c.color:'#4CAF50'}"></div><button type="submit" class="btn-primary">${ie?'Guardar':'Crear'}</button></form>`);
+document.querySelectorAll('.category-type-btn').forEach(b=>b.addEventListener('click',e=>{document.querySelectorAll('.category-type-btn').forEach(x=>x.classList.remove('active'));e.target.classList.add('active')}));
+document.getElementById('category-icon-preview').addEventListener('click',()=>ui.showIconPicker(ic=>{document.getElementById('category-icon').value=ic;document.querySelector('#category-icon-preview i').className=`fas ${ic}`},document.getElementById('category-color').value));
+document.getElementById('form-category').addEventListener('submit',handlers.newCategory)},
+newRecurring:()=>{const cs=app.state.wallet.categories.map(c=>`<option value="${c.id}">${c.name} (${c.type})</option>`).join(''),ao=app.state.wallet.accounts.map(a=>`<option value="${a.id}">${a.name}</option>`).join('');
+ui.showModal(`<h2>Nuevo Pago Habitual</h2><form id="form-recurring"><div class="form-group"><label>Nombre</label><input type="text" id="recurring-name" required></div><div class="form-group"><label>Categoría</label><select id="recurring-category" required>${cs}</select></div><div class="form-group"><label>Cuenta</label><select id="recurring-account" required>${ao}</select></div><div class="form-group"><label>Monto</label><input type="number" id="recurring-amount" step="0.01" required></div><div class="form-group"><label>Frecuencia</label><select id="recurring-frequency" required><option value="Diario">Diario</option><option value="Semanal">Semanal</option><option value="Quincenal">Quincenal</option><option value="Mensual" selected>Mensual</option><option value="Anual">Anual</option></select></div><div class="form-group"><label>Fecha de inicio</label><input type="date" id="recurring-start-date" value="${new Date().toISOString().split('T')[0]}" required></div><button type="submit" class="btn-primary">Crear</button></form>`);
+document.getElementById('form-recurring').addEventListener('submit',handlers.newRecurring)},
+newBudget:(b=null)=>{const ie=!!b,ec=app.state.wallet.categories.filter(c=>c.type==='gasto').map(c=>`<option value="${c.id}" ${ie&&b.categoryId===c.id?'selected':''}>${c.name}</option>`).join('');
+ui.showModal(`<h2>${ie?'Editar':'Nuevo'} Presupuesto</h2><form id="form-budget"><input type="hidden" id="budget-id" value="${ie?b.id:''}"><div class="form-group"><label>Categoría</label><select id="budget-category" ${ie?'disabled':''} required>${ec}</select></div><div class="form-group"><label>Monto Mensual</label><input type="number" id="budget-amount" step="0.01" value="${ie?b.amount:''}" required></div><button type="submit" class="btn-primary">${ie?'Guardar':'Crear'}</button></form>`);
+document.getElementById('form-budget').addEventListener('submit',handlers.newBudget)}};
+
+const handlers={newTransaction:e=>{e.preventDefault();const f=e.target,t=document.querySelector('.transaction-type-btn.active').dataset.type,td={id:Date.now(),type:t,date:f.querySelector('#transaction-date').value+'T12:00:00',amount:parseFloat(f.querySelector('#transaction-amount').value),comment:f.querySelector('#transaction-comment').value.trim()};
+if(t==='transferencia'){td.fromAccountId=parseInt(f.querySelector('#transaction-from-account').value);td.toAccountId=parseInt(f.querySelector('#transaction-to-account').value);if(td.fromAccountId===td.toAccountId){alert('Las cuentas deben ser diferentes');return}}else{td.categoryId=parseInt(f.querySelector('#transaction-category').value);td.accountId=parseInt(f.querySelector('#transaction-account').value)}
+app.state.wallet.transactions.push(td);data.save();ui.hideModal();render.renderMainPage()},
+newAccount:e=>{e.preventDefault();const f=e.target,id=parseInt(f.querySelector('#account-id').value),ad={name:f.querySelector('#account-name').value.trim(),initialBalance:parseFloat(f.querySelector('#account-initial-balance').value),icon:f.querySelector('#account-icon').value,color:f.querySelector('#account-color').value};
+if(!ad.name){alert('El nombre es requerido');return}
+if(id){const a=app.state.wallet.accounts.find(x=>x.id===id);Object.assign(a,ad)}else{ad.id=Date.now();ad.isMain=app.state.wallet.accounts.length===0;app.state.wallet.accounts.push(ad)}
+data.save();ui.hideModal();render.renderAccountsPage()},
+newCategory:e=>{e.preventDefault();const f=e.target,id=parseInt(f.querySelector('#category-id').value),cd={name:f.querySelector('#category-name').value.trim(),type:document.querySelector('.category-type-btn.active').dataset.type,icon:f.querySelector('#category-icon').value,color:f.querySelector('#category-color').value};
+if(!cd.name){alert('El nombre es requerido');return}
+if(id){const c=app.state.wallet.categories.find(x=>x.id===id);Object.assign(c,cd)}else{cd.id=Date.now();app.state.wallet.categories.push(cd)}
+data.save();ui.hideModal();render.renderCategoriesPage()},
+newRecurring:e=>{e.preventDefault();const f=e.target,cat=app.state.wallet.categories.find(c=>c.id===parseInt(f.querySelector('#recurring-category').value)),rd={id:Date.now(),name:f.querySelector('#recurring-name').value.trim(),categoryId:parseInt(f.querySelector('#recurring-category').value),accountId:parseInt(f.querySelector('#recurring-account').value),amount:parseFloat(f.querySelector('#recurring-amount').value),frequency:f.querySelector('#recurring-frequency').value,startDate:f.querySelector('#recurring-start-date').value+'T12:00:00',nextDueDate:f.querySelector('#recurring-start-date').value+'T12:00:00',active:true,icon:cat?.icon||'fa-sync-alt',color:cat?.color||'#4CAF50'};
+app.state.wallet.recurringPayments.push(rd);data.save();ui.hideModal();render.renderRecurringPage()},
+newBudget:e=>{e.preventDefault();const f=e.target,id=parseInt(f.querySelector('#budget-id').value),bd={categoryId:parseInt(f.querySelector('#budget-category').value),amount:parseFloat(f.querySelector('#budget-amount').value),period:'monthly'};
+if(isNaN(bd.categoryId)||isNaN(bd.amount)){alert('Complete todos los campos');return}
+if(id){const b=app.state.wallet.budgets.find(x=>x.id===id);Object.assign(b,bd)}else{if(app.state.wallet.budgets.some(x=>x.categoryId===bd.categoryId)){alert('Ya existe un presupuesto para esta categoría');return}bd.id=Date.now();app.state.wallet.budgets.push(bd)}
+data.save();ui.hideModal();render.renderBudgetsPage()}};
+
+const logic={init:()=>{if(data.load()){render.renderMenu();document.getElementById('menu-wallet-name').textContent=app.state.wallet.name;if(app.state.wallet.settings.pin){pin.show()}else{logic.initApp()}}else{render.renderWelcomePage();ui.nav('welcome')}logic.setupEvents()},
+initApp:()=>{logic.checkRecurring();ui.nav('main')},
+setupEvents:()=>{document.body.addEventListener('click',e=>{const t=e.target;
+const nl=t.closest('.nav-link');if(nl){e.preventDefault();ui.nav(nl.dataset.page)}
+if(t.closest('.back-to-main'))ui.nav('main');
+if(t.id==='menu-overlay')ui.closeMenu();
+if(t.closest('#btn-open-menu'))ui.openMenu();
+if(t.id==='modal-container'||t.closest('.close-modal-btn'))ui.hideModal();
+if(t.id==='icon-modal-container'||t.closest('.close-icon-modal-btn'))ui.hideIconPicker();
+if(t.id==='btn-add-transaction')modals.newTransaction();
+if(t.id==='btn-add-account')modals.newAccount();
+if(t.id==='btn-add-category')modals.newCategory();
+if(t.id==='btn-add-recurring')modals.newRecurring();
+if(t.id==='btn-add-budget')modals.newBudget();
+if(t.id==='btn-create-wallet'){const n=prompt('¿Cómo quieres llamar tu billetera?','Mi Billetera');if(n){data.create(n);render.renderMenu();document.getElementById('menu-wallet-name').textContent=n;logic.initApp()}}
+if(t.id==='btn-load-wallet')document.getElementById('import-wallet-input').click();
+if(t.id==='btn-set-pin')pin.setup();
+if(t.id==='btn-remove-pin'){if(confirm('¿Seguro que quieres quitar el PIN?')){app.state.wallet.settings.pin=null;data.save();alert('PIN eliminado');render.renderSettingsPage()}}
+if(t.id==='btn-export-wallet'){const ds=JSON.stringify(app.state.wallet,null,2),bl=new Blob([ds],{type:'application/json'}),url=URL.createObjectURL(bl),lk=document.createElement('a');lk.href=url;lk.download=`bukocash_backup_${new Date().toISOString().split('T')[0]}.json`;lk.click();URL.revokeObjectURL(url)}
+if(t.id==='btn-import-wallet')document.getElementById('import-wallet-input').click();
+if(t.id==='btn-delete-wallet'){if(confirm('¿Seguro que quieres eliminar todos los datos?')){localStorage.removeItem('BukoCashWallet');location.reload()}}
+const io=t.closest('.icon-option');if(io&&app.state.iconCallback){app.state.iconCallback(io.dataset.icon);ui.hideIconPicker()}
+const ct=t.closest('.category-tab');if(ct){app.state.categoryTab=ct.dataset.type;document.querySelectorAll('.category-tab').forEach(x=>x.classList.remove('active'));ct.classList.add('active');render.renderCategoriesPage()}
+const pk=t.closest('#pin-keyboard button');if(pk)pin.press(pk.dataset.key);
+const ab=t.closest('#page-accounts button');if(ab&&ab.dataset.id){const id=parseInt(ab.dataset.id);if(ab.classList.contains('action-delete-account')){if(confirm('¿Eliminar cuenta?')){app.state.wallet.accounts=app.state.wallet.accounts.filter(a=>a.id!==id);data.save();render.renderAccountsPage()}}else if(ab.classList.contains('action-edit-account')){modals.newAccount(app.state.wallet.accounts.find(a=>a.id===id))}else if(ab.classList.contains('action-set-main')){app.state.wallet.accounts.forEach(a=>a.isMain=false);app.state.wallet.accounts.find(a=>a.id===id).isMain=true;data.save();render.renderAccountsPage()}}
+const cb=t.closest('#page-categories button');if(cb&&cb.dataset.id){const id=parseInt(cb.dataset.id);if(cb.classList.contains('action-delete-category')){if(confirm('¿Eliminar categoría?')){app.state.wallet.categories=app.state.wallet.categories.filter(c=>c.id!==id);data.save();render.renderCategoriesPage()}}else if(cb.classList.contains('action-edit-category')){modals.newCategory(app.state.wallet.categories.find(c=>c.id===id))}}
+const rb=t.closest('#page-recurring button');const tg=t.closest('.toggle-recurring');if(tg){const id=parseInt(tg.dataset.id),p=app.state.wallet.recurringPayments.find(x=>x.id===id);if(p){p.active=tg.checked;data.save()}}else if(rb&&rb.dataset.id){const id=parseInt(rb.dataset.id);if(rb.classList.contains('action-delete-recurring')){if(confirm('¿Eliminar pago habitual?')){app.state.wallet.recurringPayments=app.state.wallet.recurringPayments.filter(p=>p.id!==id);data.save();render.renderRecurringPage()}}}
+const bb=t.closest('#page-budgets button');if(bb&&bb.dataset.id){const id=parseInt(bb.dataset.id);if(bb.classList.contains('action-delete-budget')){if(confirm('¿Eliminar presupuesto?')){app.state.wallet.budgets=app.state.wallet.budgets.filter(b=>b.id!==id);data.save();render.renderBudgetsPage()}}else if(bb.classList.contains('action-edit-budget')){modals.newBudget(app.state.wallet.budgets.find(b=>b.id===id))}}});
+document.body.addEventListener('change',e=>{if(e.target.id==='main-account-select'){app.state.accountId=e.target.value;render.renderMainPage()}
+if(e.target.id==='filter-period')render.renderMainPage();
+if(e.target.id==='charts-filter-period')render.renderChartsPage();
+if(e.target.id==='decimal-separator'){app.state.wallet.settings.decimalSeparator=e.target.value;data.save();if(app.state.page==='main')render.renderMainPage()}
+if(e.target.id==='import-wallet-input'){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{const wd=JSON.parse(ev.target.result);if(!wd.name||!wd.accounts||!wd.categories)throw new Error('Formato inválido');if(confirm('¿Importar esta billetera? Reemplazará todos tus datos.')){app.state.wallet=wd;app.state.wallet.settings=app.state.wallet.settings||{pin:null,decimalSeparator:','};app.state.wallet.recurringPayments=app.state.wallet.recurringPayments||[];app.state.wallet.budgets=app.state.wallet.budgets||[];app.state.accountId='all';data.save();render.renderMenu();document.getElementById('menu-wallet-name').textContent=app.state.wallet.name;if(app.state.wallet.settings.pin){pin.show()}else{logic.initApp()}}}catch(err){alert('Error al importar: '+err.message)}};r.readAsText(f);e.target.value=''}})},
+checkRecurring:()=>{const n=new Date();app.state.wallet.recurringPayments.forEach(p=>{if(!p.active)return;const nd=new Date(p.nextDueDate);if(nd<=n){const cat=app.state.wallet.categories.find(c=>c.id===p.categoryId);app.state.wallet.transactions.push({id:Date.now()+Math.random(),type:cat?.type||'gasto',categoryId:p.categoryId,accountId:p.accountId,amount:p.amount,date:nd.toISOString(),comment:`Pago habitual: ${p.name}`});p.nextDueDate=logic.calcNextDate(p.startDate,p.nextDueDate,p.frequency)}});app.state.wallet.lastRecurringCheck=n.toISOString();data.save()},
+calcNextDate:(sd,ld,f)=>{const d=new Date(ld);switch(f){case'Diario':d.setDate(d.getDate()+1);break;case'Semanal':d.setDate(d.getDate()+7);break;case'Quincenal':d.setDate(d.getDate()+15);break;case'Mensual':d.setMonth(d.getMonth()+1);break;case'Anual':d.setFullYear(d.getFullYear()+1);break}return d.toISOString()}};
+
+document.addEventListener('DOMContentLoaded',logic.init);
+})();
+    </script>
+</body>
+</html>
